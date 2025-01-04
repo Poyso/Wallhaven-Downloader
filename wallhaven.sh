@@ -22,7 +22,7 @@ APIKEY=""
 ###     Configuration Options     ###
 #####################################
 # Where should the Wallpapers be stored?
-LOCATION=/location/to/your/wallpaper/folder
+LOCATION=~/.local/src/wallhaven/
 # How many Wallpapers should be downloaded, should be multiples of the
 # value in the THUMBS Variable
 WPNUMBER=48
@@ -31,7 +31,7 @@ STARTPAGE=1
 # Type standard (newest, oldest, random, hits, mostfav), search, collections
 # (for now only the default collection), useruploads (if selected, only
 # FILTER variable will change the outcome)
-TYPE=standard
+TYPE=collections
 # From which Categories should Wallpapers be downloaded, first number is
 # for General, second for Anime, third for People, 1 to enable category,
 # 0 to disable it
@@ -70,7 +70,7 @@ ORDER=desc
 # and the username under USR
 # Please note that the only filter option applied to Collections is the Number
 # of Wallpapers to download, there is no filter for resolution, purity, ...
-COLLECTION="Default"
+COLLECTION="walls"
 # Searchterm, only used if TYPE = search
 # you can also search by tags, use id:TAGID
 # to get the tag id take a look at: https://wallhaven.cc/tags/
@@ -86,7 +86,7 @@ SUBFOLDER=0
 # User from which wallpapers should be downloaded
 # used for TYPE=useruploads and TYPE=collections
 # If you want to download your own Collection this has to be set to your username
-USR="AksumkA"
+USR="poiso"
 # use gnu parallel to speed up the download (0, 1), if set to 1 make sure
 # you have gnuparallel installed, see normal.vs.parallel.txt for
 # speed improvements
@@ -106,14 +106,15 @@ function checkDependencies {
     dependencies=(wget jq sed)
     [[ $PARALLEL == 1 ]] && dependencies+=(parallel)
 
-    for name in "${dependencies[@]}"
-    do
+    for name in "${dependencies[@]}"; do
         [[ $(command -v "$name" 2>/dev/null) ]] ||
-        { printf "\n%s needs to be installed. Use your package manager to do so, e.g. 'sudo apt install %s'" "$name" "$name";deps=1; }
+            {
+                printf "\n%s needs to be installed. Use your package manager to do so, e.g. 'sudo apt install %s'" "$name" "$name"
+                deps=1
+            }
     done
 
-    if [[ $deps -ne 1 ]]
-    then
+    if [[ $deps -ne 1 ]]; then
         printf "OK\n"
     else
         printf "\nInstall the above and rerun this script\n"
@@ -128,8 +129,7 @@ function checkDependencies {
 #
 function setAPIkeyHeader {
     # checking parameters -> if not ok print error and exit script
-    if [ $# -lt 1 ] || [ "$1" == '' ]
-    then
+    if [ $# -lt 1 ] || [ "$1" == '' ]; then
         printf "Please make sure to enter a valid API key,\n"
         printf "it is needed for NSFW Content and downloading \n"
         printf "your Collections also make sure your Thumbnails per\n"
@@ -148,8 +148,7 @@ function setAPIkeyHeader {
 #
 function getPage {
     # checking parameters -> if not ok print error and exit script
-    if [ $# -lt 1 ]
-    then
+    if [ $# -lt 1 ]; then
         printf "getPage expects at least 1 argument\\n"
         printf "arg1:\\tparameters for the wget -q command\\n\\n"
         printf "press any key to exit\\n"
@@ -166,42 +165,36 @@ function getPage {
 # arg1: the file containing the wallpapers
 #
 function downloadWallpapers {
-    if (( "$page" >= "$(jq -r ".meta.last_page" tmp)" ))
-    then
+    if (("$page" >= "$(jq -r ".meta.last_page" tmp)")); then
         downloadEndReached=true
     fi
 
-    for ((i=0; i<THUMBS; i++))
-    do
+    for ((i = 0; i < THUMBS; i++)); do
         imgURL=$(jq -r ".data[$i].path" tmp)
 
-        filename=$(echo "$imgURL"| sed "s/.*\///" )
-        if grep -w "$filename" downloaded.txt >/dev/null
-        then
+        filename=$(echo "$imgURL" | sed "s/.*\///")
+        if grep -w "$filename" downloaded.txt >/dev/null; then
             printf "\\tWallpaper %s already downloaded!\\n" "$imgURL"
-        elif [ $PARALLEL == 1 ]
-        then
-            echo "$imgURL" >> download.txt
+        elif [ $PARALLEL == 1 ]; then
+            echo "$imgURL" >>download.txt
         else
             # check if downloadWallpaper was successful
-            if downloadWallpaper "$imgURL"
-            then
-                echo "$filename" >> downloaded.txt
+            if downloadWallpaper "$imgURL"; then
+                echo "$filename" >>downloaded.txt
             fi
         fi
     done
 
-    if [ $PARALLEL == 1 ] && [ -f ./download.txt ]
-    then
+    if [ $PARALLEL == 1 ] && [ -f ./download.txt ]; then
         # export wget wrapper and download function to make it
         # available for parallel
         export -f WGET coolDown downloadWallpaper
         # shellcheck disable=SC2016
         SHELL=$(type -p bash) parallel --gnu --no-notice \
-            'imgURL={} && downloadWallpaper $imgURL && echo "$imgURL"| sed "s/.*\///" >> downloaded.txt' < download.txt
-            rm tmp download.txt
-        else
-            rm tmp
+            'imgURL={} && downloadWallpaper $imgURL && echo "$imgURL"| sed "s/.*\///" >> downloaded.txt' <download.txt
+        rm tmp download.txt
+    else
+        rm tmp
     fi
 } # /downloadWallpapers
 
@@ -211,8 +204,7 @@ function downloadWallpapers {
 # needs to be downloaded
 #
 function downloadWallpaper {
-    if [[ "$1" != null ]]
-    then
+    if [[ "$1" != null ]]; then
         WGET "$1"
     else
         return 1
@@ -235,8 +227,7 @@ function coolDown {
 #
 function WGET {
     # checking parameters -> if not ok print error and exit script
-    if [ $# -lt 1 ]
-    then
+    if [ $# -lt 1 ]; then
         printf "WGET expects at least 1 argument\\n"
         printf "arg0:\\tadditional arguments for wget (optional)\\n"
         printf "arg1:\\tfile to download\\n\\n"
@@ -247,8 +238,8 @@ function WGET {
 
     # default wget command
     wget --server-response -q --header="$httpHeader" --keep-session-cookies \
-         --save-cookies cookies.txt --load-cookies cookies.txt "$@" 2>&1 | \
-         grep "429 Too Many Requests" >/dev/null && coolDown "$@"
+        --save-cookies cookies.txt --load-cookies cookies.txt "$@" 2>&1 |
+        grep "429 Too Many Requests" >/dev/null && coolDown "$@"
 
     return "${PIPESTATUS[0]}"
 } # /WGET
@@ -317,114 +308,123 @@ function helpText {
 } # /helptext
 
 # Command line Arguments
-while [[ $# -ge 1 ]]
-    do
+while [[ $# -ge 1 ]]; do
     key="$1"
 
     case $key in
-        -l|--location)
-            LOCATION="$2"
-            shift;;
-        -n|--number)
-            WPNUMBER="$2"
-            shift;;
-        -s|--startpage)
-            STARTPAGE="$2"
-            shift;;
-        -t|--type)
-            TYPE="$2"
-            shift;;
-        -c|--categories)
-            CATEGORIES="$2"
-            shift;;
-        -f|--filter)
-            FILTER="$2"
-            shift;;
-        -r|--resolution)
-            RESOLUTION="$2"
-            shift;;
-        -g|--atleast)
-            ATLEAST="$2"
-            shift;;
-        -a|--aspectratio)
-            ASPECTRATIO="$2"
-            shift;;
-        -m|--mode)
-            MODE="$2"
-            shift;;
-        -o|--order)
-            ORDER="$2"
-            shift;;
-        -b|--collection)
-            COLLECTION="$2"
-            shift;;
-        -q|--query)
-            QUERY=${2//\'/}
-            shift;;
-        -d|--dye|--color)
-            COLOR="$2"
-            shift;;
-        -u|--user)
-            USR="$2"
-            shift;;
-        -p|--parallel)
-            PARALLEL="$2"
-            shift;;
-        -h|--help)
-            helpText
-            exit
-            ;;
-        -v|--version)
-            printf "Wallhaven Downloader %s\\n" "$REVISION"
-            exit
-            ;;
-        *)
-            printf "unknown option: %s\\n" "$1"
-            helpText
-            exit
-            ;;
+    -l | --location)
+        LOCATION="$2"
+        shift
+        ;;
+    -n | --number)
+        WPNUMBER="$2"
+        shift
+        ;;
+    -s | --startpage)
+        STARTPAGE="$2"
+        shift
+        ;;
+    -t | --type)
+        TYPE="$2"
+        shift
+        ;;
+    -c | --categories)
+        CATEGORIES="$2"
+        shift
+        ;;
+    -f | --filter)
+        FILTER="$2"
+        shift
+        ;;
+    -r | --resolution)
+        RESOLUTION="$2"
+        shift
+        ;;
+    -g | --atleast)
+        ATLEAST="$2"
+        shift
+        ;;
+    -a | --aspectratio)
+        ASPECTRATIO="$2"
+        shift
+        ;;
+    -m | --mode)
+        MODE="$2"
+        shift
+        ;;
+    -o | --order)
+        ORDER="$2"
+        shift
+        ;;
+    -b | --collection)
+        COLLECTION="$2"
+        shift
+        ;;
+    -q | --query)
+        QUERY=${2//\'/}
+        shift
+        ;;
+    -d | --dye | --color)
+        COLOR="$2"
+        shift
+        ;;
+    -u | --user)
+        USR="$2"
+        shift
+        ;;
+    -p | --parallel)
+        PARALLEL="$2"
+        shift
+        ;;
+    -h | --help)
+        helpText
+        exit
+        ;;
+    -v | --version)
+        printf "Wallhaven Downloader %s\\n" "$REVISION"
+        exit
+        ;;
+    *)
+        printf "unknown option: %s\\n" "$1"
+        helpText
+        exit
+        ;;
     esac
     shift # past argument or value
-    done
+done
 
 checkDependencies
 
 # optionally create a separate subfolder for each search query
 # might download duplicates as each search query has its own list of
 # downloaded wallpapers
-if [ "$TYPE" == search ] && [ "$SUBFOLDER" == 1 ]
-then
-    LOCATION+=/$(echo "$QUERY" | sed -e "s/ /_/g" -e "s/+/_/g" -e  "s/\\//_/g")
+if [ "$TYPE" == search ] && [ "$SUBFOLDER" == 1 ]; then
+    LOCATION+=/$(echo "$QUERY" | sed -e "s/ /_/g" -e "s/+/_/g" -e "s/\\//_/g")
 fi
 
 # creates Location folder if it does not exist
-if [ ! -d "$LOCATION" ]
-then
+if [ ! -d "$LOCATION" ]; then
     mkdir -p "$LOCATION"
 fi
 
 cd "$LOCATION" || exit
 
 # creates downloaded.txt if it does not exist
-if [ ! -f ./downloaded.txt ]
-then
+if [ ! -f ./downloaded.txt ]; then
     touch downloaded.txt
 fi
 
 # set auth header only when it is required ( for example to download your
 # own collections or nsfw content... )
-if  [ "$FILTER" == 001 ] || [ "$FILTER" == 011 ] || [ "$FILTER" == 111 ] \
-    || [ "$TYPE" == collections ] || [ "$THUMBS" != 24 ]
-then
+if [ "$FILTER" == 001 ] || [ "$FILTER" == 011 ] || [ "$FILTER" == 111 ] ||
+    [ "$TYPE" == collections ] || [ "$THUMBS" != 24 ]; then
     setAPIkeyHeader "$APIKEY"
 fi
 
-if [ "$TYPE" == standard ]
-then
-    for ((  count=0, page="$STARTPAGE";
-            count< "$WPNUMBER";
-            count=count+"$THUMBS", page=page+1 ));
-    do
+if [ "$TYPE" == standard ]; then
+    for ((count = 0, page = "$STARTPAGE";  \
+    count < "$WPNUMBER";  \
+    count = count + "$THUMBS", page = page + 1)); do
         printf "Download Page %s\\n" "$page"
         s1="search?page=$page&categories=$CATEGORIES&purity=$FILTER&"
         s1+="atleast=$ATLEAST&resolutions=$RESOLUTION&ratios=$ASPECTRATIO"
@@ -434,27 +434,22 @@ then
         printf "Download Wallpapers from Page %s\\n" "$page"
         downloadWallpapers
         printf "\\t- done!\\n"
-        if [ "$downloadEndReached" = true ]
-        then
+        if [ "$downloadEndReached" = true ]; then
             break
         fi
     done
 
-elif [ "$TYPE" == search ] || [ "$TYPE" == useruploads ]
-then
-    for ((  count=0, page="$STARTPAGE";
-            count< "$WPNUMBER";
-            count=count+"$THUMBS", page=page+1 ));
-    do
+elif [ "$TYPE" == search ] || [ "$TYPE" == useruploads ]; then
+    for ((count = 0, page = "$STARTPAGE";  \
+    count < "$WPNUMBER";  \
+    count = count + "$THUMBS", page = page + 1)); do
         printf "Download Page %s\\n" "$page"
         s1="search?page=$page&categories=$CATEGORIES&purity=$FILTER&"
         s1+="atleast=$ATLEAST&resolutions=$RESOLUTION&ratios=$ASPECTRATIO"
         s1+="&sorting=$MODE&order=desc&topRange=$TOPRANGE&colors=$COLOR"
-        if [ "$TYPE" == search ]
-        then
+        if [ "$TYPE" == search ]; then
             s1+="&q=$QUERY"
-        elif [ "$TYPE" == useruploads ]
-        then
+        elif [ "$TYPE" == useruploads ]; then
             s1+="&q=@$USR"
         fi
 
@@ -463,16 +458,13 @@ then
         printf "Download Wallpapers from Page %s\\n" "$page"
         downloadWallpapers
         printf "\\t- done!\\n"
-        if [ "$downloadEndReached" = true ]
-        then
+        if [ "$downloadEndReached" = true ]; then
             break
         fi
     done
 
-elif [ "$TYPE" == collections ]
-then
-    if [ "$USR" == "" ]
-    then
+elif [ "$TYPE" == collections ]; then
+    if [ "$USR" == "" ]; then
         printf "Please check the value specified for USR\\n"
         printf "to download a Collection it is necessary to specify a User\\n\\n"
         printf "Press any key to exit\\n"
@@ -482,7 +474,6 @@ then
 
     getPage "collections/$USR"
 
-
     i=0
     while
         label=$(jq -e -r ".data[$i].label" tmp)
@@ -490,23 +481,21 @@ then
         collectionsize=$(jq -e -r ".data[$i].count" tmp)
         [[ $label != "$COLLECTION" && $label != null ]]
     do
-        (( i++ ))
+        ((i++))
     done
 
-    if [ -z "$id" ]
-    then
+    if [ -z "$id" ]; then
         printf "Please check the value specified for COLLECTION\\n"
         printf "it seems that a collection with the name \"%s\" does not exist\\n\\n" \
-                "$COLLECTION"
+            "$COLLECTION"
         printf "Press any key to exit\\n"
         read -r
         exit
     fi
 
-    for ((  count=0, page="$STARTPAGE";
-            count< "$WPNUMBER" && count< "$collectionsize";
-            count=count+"$THUMBS", page=page+1 ));
-    do
+    for ((count = 0, page = "$STARTPAGE";  \
+    count < "$WPNUMBER" && count < "$collectionsize";  \
+    count = count + "$THUMBS", page = page + 1)); do
         printf "Download Page %s\\n" "$page"
         getPage "collections/$USR/$id?page=$page"
         printf "\\t- done!\\n"
@@ -519,4 +508,3 @@ else
 fi
 
 rm -f cookies.txt
-
